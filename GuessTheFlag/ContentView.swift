@@ -8,6 +8,22 @@
 
 import SwiftUI
 
+//custom container for the flag image view
+struct FlagImage: View {
+    let number: Int
+    let flags: [String]
+    
+    var body: some View {
+        Image(self.flags[number])
+            .renderingMode(.original)
+            .clipShape(Capsule())
+            .overlay(Capsule().stroke(Color.white, lineWidth: 1))
+            .shadow(color: .white, radius: 3)
+            
+        
+    }
+}
+
 struct ContentView: View {
     @State private var flags = ["Estonia", "France", "Germany", "Ireland", "Italy", "Monaco", "Nigeria", "Poland", "Russia", "Spain", "UK", "US"]
         .shuffled()
@@ -17,6 +33,10 @@ struct ContentView: View {
     @State private var userScore = 0
     @State private var totalRounds = 0
     @State private var wrongFlag : Int? = nil
+    @State private var rotationAmount = 0.0
+    @State private var scaleAmount: CGFloat = 1
+    @State private var opacityAmount = 1.0
+    @State private var angle = 0.0
     
     enum ScoreTitle {
         case correct
@@ -28,7 +48,6 @@ struct ContentView: View {
             //BackGround
             AngularGradient(gradient: Gradient(colors: [.red, .orange, .yellow, .green, .blue, .purple, .pink]), center: .center)
                 .edgesIgnoringSafeArea(.all)
-
             
             VStack(spacing: 30) {
                 //header
@@ -40,19 +59,35 @@ struct ContentView: View {
                         .font(.largeTitle)
                         .fontWeight(.black)
                 }
-                //flags
+                //flag buttons
                 ForEach(0..<4) { number in
                     Button(action: {
-                        self.flagTapped(number)
+                        if number == self.answer {
+                            withAnimation {
+                                self.opacityAmount = 0.25
+                                self.flagTapped(number)
+                            }
+
+                        } else {
+                            withAnimation {
+                                self.flagTapped(number)
+                            }
+                        }
                     }) {
-                        Image(self.flags[number])
-                            .renderingMode(.original)
-                            .clipShape(Capsule())
-                            .overlay(Capsule().stroke(Color.white, lineWidth: 1))
-                            .shadow(color: .white, radius: 3)
-                        
+                        if number == self.answer {
+                            FlagImage(number: number, flags: self.flags)
+                                .rotation3DEffect(.degrees(self.rotationAmount), axis: (x: 0, y: 1, z: 0))
+                        } else {
+                            FlagImage(number: number, flags: self.flags)
+                                .scaleEffect(self.scaleAmount)
+                                .opacity(self.opacityAmount)
+                        }
                     }
                 }
+                .onAppear {
+                    
+                }
+                
                 //scoreboard
                 VStack {
                     Text("Current Score : \(userScore)")
@@ -79,7 +114,9 @@ struct ContentView: View {
                 return Alert(title: Text("Correct!"),
                       message: Text("Your current score is \(self.userScore) out of \(self.totalRounds) rounds."),
                       dismissButton: .default(Text("Continue")) {
+                    self.opacityAmount = 0.10
                     self.newQuestion()
+                        
                 })
             } else {
                 return Alert(title: Text("Wrong!"),
@@ -95,20 +132,24 @@ struct ContentView: View {
         let oldFlag = flags[answer]
         var tempAnswer = Int.random(in: 0...3)
         flags = flags.shuffled()
-        //no consecutive repeats
-        while flags[tempAnswer] == oldFlag {
+        //no consecutive repeats or same answer location
+        while flags[tempAnswer] == oldFlag || tempAnswer == answer {
             tempAnswer = Int.random(in: 0...3)
         }
-        
+        self.rotationAmount = 0.0
+        self.scaleAmount = 1
+        self.opacityAmount = 1.0
         answer = tempAnswer
     }
     
     private func flagTapped(_ number: Int) {
         if number == answer {
+            self.rotationAmount += 360
             scoreTitle = .correct
             userScore += 1
             totalRounds += 1
         } else {
+            self.scaleAmount = 0
             wrongFlag = number
             scoreTitle = .wrong
             totalRounds += 1
